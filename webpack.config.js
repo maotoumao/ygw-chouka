@@ -1,4 +1,7 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+const CompressionPlugin = require('compression-webpack-plugin');
 const path = require('path');
 
 
@@ -35,12 +38,31 @@ module.exports = {
             }
         ]
     },
+    optimization: {
+        splitChunks: {
+            chunks: 'all'
+        },
+        minimizer: [
+            new TerserPlugin({
+                terserOptions: {
+                    compress: {
+                        drop_console: true,
+                    },
+                    output: {
+                        comments: false
+                    }
+                }
+            })
+        ],
+    },
 
     plugins: [
         new HtmlWebpackPlugin({
             template: path.join(__dirname, 'src', 'index.html'),
             filename: 'index.html'
-        })
+        }),
+        new BundleAnalyzerPlugin(),
+        new CompressionPlugin()
     ],
     devServer: {
         port: '6688',

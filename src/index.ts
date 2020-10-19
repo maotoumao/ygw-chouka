@@ -1,8 +1,7 @@
-import { Application, InteractionEvent, Point, IResourceDictionary, Loader, Sprite, Graphics } from 'pixi.js';
+import { Application, InteractionEvent, Point, IResourceDictionary, Loader, Sprite, Graphics, DisplayObject } from 'pixi.js';
 import * as math from 'mathjs';
-import bkgdPath from './assets/bkgd.png';
-// import bkgdImg from './assets/bkgd-area.png';
-// import canvasImg from './assets/canvas-area.png';
+import bkgdPath from './assets/bkgd.jpg';
+
 
 enum DrawStatus {
     READY,
@@ -32,13 +31,18 @@ let scale: number;
 
 // 元素
 let bkgd: Sprite;
+let jiujiuGraph: Graphics;
 let line: Graphics;
 
 // 参数
 let drawStatus: DrawStatus;
 let edges: Edge[];
+let redLine: DisplayObject[];
 
 
+// tools functions
+
+// 绘制交叉
 function testCross(p, q) {
     line = new Graphics();
     line.lineStyle(2, 0x0033ff, 1);
@@ -52,53 +56,6 @@ function testCross(p, q) {
     line.lineTo(q.to.x, q.to.y)
     app.stage.addChild(line);
 }
-
-// tools functions
-// /**
-//  * 两条线段是否存在重合部分
-//  * @param p 边p
-//  * @param q 边q
-//  */
-// const _judgeCoincideEdge = (p: Edge, q: Edge): boolean => {
-//     if ((p.from.x - p.to.x) * (q.from.y - q.to.y) === (p.from.y - p.to.y) * (q.from.x - q.to.x) && math.cross([p.from.x - q.from.x, p.from.y - q.from.y, 0], [p.from.x - p.to.x, p.from.y - p.to.y, 0])[2] === 0) {
-//         if (Math.min(p.from.x, p.to.x) <= Math.max(q.from.x, q.to.x) || Math.min(q.from.x, q.to.x) <= Math.max(p.from.x, p.to.x) ||
-//             Math.min(p.from.y, p.to.y) <= Math.max(q.from.y, q.to.y) || Math.min(q.from.y, q.to.y) <= Math.max(p.from.y, p.to.y)
-//         ) {
-//             return true;
-//         }
-//     }
-//     return false;
-// }
-
-
-// // 合并所有重合的线段，并去除单点
-// const _mergeEdges = (edges: Edge[]): void => {
-//     let p: Edge, q: Edge;
-//     for (let i = 0; i < edges.length - 1; ++i) {
-//         p = edges[i];
-//         if (p.from.equals(p.to)) {
-//             // 这是一个点，删除
-//             edges.splice(i, 1);
-//             --i;
-//             continue;
-//         }
-
-//         // 否则，检测其他边是否存在重合
-//         for (let j = i + 1; j < edges.length; ++j) {
-//             q = edges[j];
-//             if (_judgeCoincideEdge(p, q)) {
-//                 // 存在重合，改写当前的p
-//                 p = {
-//                     from: new Point(Math.min(p.from.x, p.to.x, q.from.x, q.to.x), Math.min(p.from.y, p.to.y, q.from.y, q.to.y)),
-//                     to: new Point(Math.max(p.from.x, p.to.x, q.from.x, q.to.x), Math.max(p.from.y, p.to.y, q.from.y, q.to.y))
-//                 }
-//                 edges[i] = p;
-//                 edges.splice(j, 1);
-//                 --j;
-//             }
-//         }
-//     }
-// }
 
 const _removePoints = (edges: Edge[]): void => {
     let p: Edge, q: Edge;
@@ -160,7 +117,7 @@ const _calculateCrossPoint = (edges: Edge[]) => {
             // 是否满足跨立实验
             if (_kl(p, q)) {
                 // 交点：
-                testCross(p, q)
+                // testCross(p, q)
                 console.log('cross', i, j, p, q);
 
                 const crossPoint = _calCross(p, q);
@@ -310,7 +267,6 @@ const _transversalGraph = (startNode: Node): Point[] => {
     let points: Point[] = [];
     for (let i = 0; i < edges.length * (edges.length - 1) / 2 + edges.length; ++i) {
         if (!currNode) {
-            console.log('break');
             break;
         }
         points.push(currNode.point);
@@ -318,6 +274,10 @@ const _transversalGraph = (startNode: Node): Point[] => {
     }
 
     return points;
+}
+
+const _accompletePoints = (points: Point[], x: number, y: number, scale: number): void => {
+    points.push(new Point(x * scale, y * scale));
 }
 
 
@@ -375,6 +335,7 @@ function initBasic(): void {
     resources = loader.resources;
 
     drawStatus = DrawStatus.READY;
+    redLine = [];
 }
 
 async function initRes(): Promise<void> {
@@ -389,8 +350,41 @@ async function initRes(): Promise<void> {
         resources['bkgd'].texture
     );
 
+    let bkgdHidden = new Sprite(
+        resources['bkgd'].texture
+    );
+    
+    jiujiuGraph = new Graphics();
+    jiujiuGraph.beginFill(0xf88d98);
+    jiujiuGraph.drawPolygon([
+        new Point(0, 144),
+        new Point(176, 300),
+        new Point(178, 176),
+        new Point(118, 64)
+    ])
+    jiujiuGraph.endFill();
+    jiujiuGraph.beginFill(0xe8464c);
+    jiujiuGraph.drawPolygon([
+        new Point(188, 0),
+        new Point(316, 8),
+        new Point(300, 300),
+        new Point(176,300)
+    ]);
+    jiujiuGraph.endFill();
+    jiujiuGraph.scale.set(0.5 * scale, 0.5 * scale);
+
+    const rec = new Graphics();
+    rec.beginFill(0x666666, 0.6)
+    rec.drawRect(0, 0, 1080 * scale, 2340 * scale);
+    rec.endFill();
+
+    app.stage.addChild(bkgdHidden);
+    app.stage.addChild(rec);
+    app.stage.addChild(jiujiuGraph);
     app.stage.addChild(bkgd);
+
     bkgd.scale.set(scale, scale);
+    bkgdHidden.scale.set(scale, scale);
     bkgd.interactive = true;
 
 }
@@ -398,8 +392,12 @@ async function initRes(): Promise<void> {
 function initEvents(): void {
     const _startDraw = (e: InteractionEvent): void => {
         // 落在起点附近，可以开始画图
+        if (drawStatus !== DrawStatus.READY) {
+            return;
+        }
+        redLine = [];
         const { x, y } = e.data.global;
-        const dist = 50 * scale;
+        const dist = 150 * scale;
         if (Math.abs(x - 420 * scale) < dist && Math.abs(y - (1400 * scale - dist)) < dist) {
             drawStatus = DrawStatus.DRAWING;
             edges = [
@@ -418,6 +416,7 @@ function initEvents(): void {
         if (drawStatus === DrawStatus.DRAWING) {
             line.lineTo(e.data.global.x, e.data.global.y);
             app.stage.addChild(line);
+            redLine.push(line);
             line = new Graphics();
             line.lineStyle(4, 0xff0000, 1);
             line.moveTo(e.data.global.x, e.data.global.y);
@@ -434,6 +433,7 @@ function initEvents(): void {
             // 封闭图形
             line.lineTo(640 * scale, 1400 * scale);
             app.stage.addChild(line);
+            redLine.push(line);
             edges[edges.length - 1].to = new Point(640 * scale, 1400 * scale);
 
             // 处理形状
@@ -441,16 +441,73 @@ function initEvents(): void {
             _removePoints(edges);
             // _drawByEdge(edges);
             _calculateCrossPoint(edges);
-
             const root: Node = _constructGraph(edges);
             // _drawByGraph(root);
             const points: Point[] = _transversalGraph(root);
-            console.log(root);
-             _drawByPoint(points);
+            // _drawByPoint(points);
+
+            // 找到最高的点
+            let jiujiu: number[] = [];
+            for (let i = 0; i < points.length - 1; ++i) {
+                if ((points[i].x - 536 * scale) * (points[i + 1].x - 536 * scale) <= 0) {
+                    if (points[i].x === points[i + 1].x) {
+                        jiujiu.push(Math.min(points[i].y, points[i + 1].y))
+                    } else {
+                        jiujiu.push(points[i].y + (536 * scale - points[i].x) / (points[i + 1].x - points[i].x) * (points[i + 1].y - points[i].y))
+                    }
+                }
+            }
+            
+            
+            jiujiuGraph.position.set(536 * scale - jiujiuGraph.width / 2, Math.min(...jiujiu) - jiujiuGraph.height * 0.8);
+
+            // 头部填充
+            let head = new Graphics();
+            head.beginFill(0xe6e2dd);
+            head.drawPolygon(points);
+            head.endFill();
+            app.stage.addChild(head);
+            // 删除红线
+            app.stage.removeChild(...redLine);
+
+            // 补全路径
+            _accompletePoints(points, 640, 1400, scale);
+            _accompletePoints(points, 742, 1422, scale);
+            _accompletePoints(points, 720, 1520, scale);
+            _accompletePoints(points, 656, 1518, scale);
+            _accompletePoints(points, 684, 1712, scale);
+            _accompletePoints(points, 562, 1712, scale);
+            _accompletePoints(points, 536, 1680, scale);
+            _accompletePoints(points, 510, 1712, scale);
+            _accompletePoints(points, 394, 1712, scale);
+            _accompletePoints(points, 416, 1518, scale);
+            _accompletePoints(points, 352, 1520, scale);
+            _accompletePoints(points, 330, 1422, scale);
+
+            let mask = new Graphics();
+            mask.beginFill(0xffffff);
+            mask.drawPolygon(points);
+            mask.endFill();
+
+
+            bkgd.mask = mask;
+
             drawStatus = DrawStatus.DONE;
         }
 
     }
+
+    bkgd.on('mousedown', (e) => {
+        _startDraw(e);
+    });
+
+    bkgd.on('mousemove', (e) => {
+        _drawing(e);
+    });
+
+    bkgd.on('mouseup', (e) => {
+        _endDraw(e);
+    })
 
 
     bkgd.on('touchstart', (e) => {
@@ -465,9 +522,6 @@ function initEvents(): void {
         _endDraw(e);
     })
 
-    bkgd.on('tap', (e) => {
-        console.log(e.data.global)
-    })
 
 }
 
@@ -479,24 +533,3 @@ async function init() {
 
 
 init();
-
-console.log(_selectNextNode({
-    point: new Point(50, 50),
-    neighbor: []
-}, {
-    point: new Point(50, 30),
-    neighbor: [
-        // {
-        //     point: new Point(60, 30),
-        //     neighbor: []
-        // },
-        {
-            point: new Point(-50, 10),
-            neighbor: []
-        },
-        {
-            point: new Point(-10, 30),
-            neighbor: []
-        }
-    ]
-}))
